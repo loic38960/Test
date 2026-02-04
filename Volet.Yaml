@@ -272,6 +272,7 @@ extra_styles: |
     height: calc(var(--rs-roller-h) * 1px);
     background: rgba(0,0,0,0.35);
     border-bottom: 1px solid rgba(255,255,255,0.12);
+    z-index: 3;
   }
 
   /* Tablier (lames) */
@@ -279,9 +280,9 @@ extra_styles: |
     position:absolute;
     left:0;
     right:0;
-    bottom: 0;
-    top: auto;
-    height: calc(var(--rs-shutter-px) * 1px);
+    top: 0;
+    bottom: auto;
+    height: calc(var(--rs-shutter-px) * 1px + var(--rs-roller-h) * 1px);
     background:
       repeating-linear-gradient(
         to bottom,
