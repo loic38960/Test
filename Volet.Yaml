@@ -1,0 +1,374 @@
+type: custom:button-card
+entity: cover.rollershutter_0001
+show_name: false
+show_icon: false
+show_state: false
+
+variables:
+  invert_position: false
+  window_height_px: 210
+  window_width_px: 140
+  roller_height_px: 14
+  min_rolled_pct: 6
+  animate_duration_s: 0.75
+
+tap_action:
+  action: more-info
+
+styles:
+  card:
+    - padding: 14px
+    - height: 340px
+  grid:
+    - grid-template-areas: "\"main main main\" \"btn_open btn_stop btn_close\""
+    - grid-template-columns: 1fr 1fr 1fr
+    - grid-template-rows: 1fr auto
+    - row-gap: 12px
+  custom_fields:
+    main:
+      - grid-area: main
+    btn_open:
+      - grid-area: btn_open
+    btn_stop:
+      - grid-area: btn_stop
+    btn_close:
+      - grid-area: btn_close
+
+custom_fields:
+  main: |
+    [[[
+      const st = entity?.state ?? 'unknown';
+
+      // Position (0..100)
+      let pos = Number.isFinite(entity?.attributes?.current_position)
+                  ? entity.attributes.current_position
+                  : null;
+      if (pos === null) {
+        if (st === 'closed') pos = 0;
+        else if (st === 'open') pos = 100;
+        else pos = 0;
+      }
+      if (variables.invert_position) pos = 100 - pos;
+      pos = Math.max(0, Math.min(100, pos));
+
+      const moving = (st === 'opening' || st === 'closing');
+
+      // Couleurs d'état
+      let accent = 'var(--state-inactive-color)';
+      if (st === 'opening') accent = 'var(--info-color)';
+      else if (st === 'closing') accent = 'var(--warning-color)';
+      else if (pos >= 99) accent = 'var(--state-active-color)';
+      else if (pos <= 1) accent = 'var(--state-inactive-color)';
+      else accent = 'var(--primary-color)';
+
+      // Icône / libellé
+      let label = '';
+      let icon = 'mdi:window-shutter';
+      if (st === 'opening') { label = 'Ouverture…'; icon = 'mdi:arrow-up-bold'; }
+      else if (st === 'closing') { label = 'Fermeture…'; icon = 'mdi:arrow-down-bold'; }
+      else if (pos <= 1) { label = 'Fermé'; icon = 'mdi:window-shutter'; }
+      else if (pos >= 99) { label = 'Ouvert'; icon = 'mdi:window-shutter-open'; }
+      else { label = `Ouvert à ${pos.toFixed(0)}%`; icon = 'mdi:window-shutter'; }
+
+      // Dimensions
+      const h = Number(variables.window_height_px) || 210;
+      const w = Number(variables.window_width_px) || 140;
+      const roller = Number(variables.roller_height_px) || 14;
+      const minRolledPct = Number(variables.min_rolled_pct) || 6;
+      const dur = Number(variables.animate_duration_s) || 0.75;
+
+      const usable = Math.max(70, h - roller);
+      const shutterClosedPct = 100 - pos;
+      const minRolledPx = usable * (minRolledPct / 100);
+      const shutterPx = Math.max(minRolledPx, usable * (shutterClosedPct / 100));
+
+      const name = entity?.attributes?.friendly_name ?? 'Volet roulant';
+
+      return `
+        <div class="rs-root ${moving ? 'moving' : ''} state-${st}"
+             style="
+               --rs-accent:${accent};
+               --rs-window-h:${h};
+               --rs-window-w:${w};
+               --rs-roller-h:${roller};
+               --rs-shutter-px:${shutterPx};
+               --rs-dur:${dur}s;
+             ">
+
+          <div class="rs-header">
+            <div class="rs-title">${name}</div>
+            <div class="rs-status">
+              <span class="rs-dot"></span>
+              <ha-icon icon="${icon}"></ha-icon>
+              <span class="rs-label">${label}</span>
+            </div>
+          </div>
+
+          <div class="rs-layout">
+            <div class="rs-window">
+              <div class="rs-glass"></div>
+              <div class="rs-roller"></div>
+
+              <!-- Le tablier (lames) -->
+              <div class="rs-shutter"></div>
+
+              <div class="rs-pct">Position ${pos.toFixed(0)}%</div>
+              <div class="rs-raw">État brut: ${st}</div>
+            </div>
+
+            <div class="rs-legend">
+              <div class="rs-chip">
+                <span class="rs-chip-k">Ouverture</span>
+                <span class="rs-chip-v">${pos.toFixed(0)}%</span>
+              </div>
+              <div class="rs-note">
+                Astuce : toucher la carte ouvre “more-info” (slider natif si supporté).
+              </div>
+              ${variables.invert_position ? `<div class="rs-warn">Mode “position inversée” actif</div>` : ``}
+            </div>
+          </div>
+        </div>
+      `;
+    ]]]
+  btn_open:
+    card:
+      type: custom:button-card
+      entity: cover.rollershutter_0001
+      icon: mdi:arrow-up-bold
+      show_name: false
+      show_state: false
+      tap_action:
+        action: call-service
+        service: cover.open_cover
+        target:
+          entity_id: cover.rollershutter_0001
+      styles:
+        card:
+          - padding: 10px
+          - border-radius: 12px
+          - background: rgba(255,255,255,0.04)
+        icon:
+          - color: |
+              [[[
+                return (entity.state === 'open' || entity.state === 'opening')
+                  ? 'var(--state-inactive-color)'
+                  : 'var(--state-active-color)';
+              ]]]
+  btn_stop:
+    card:
+      type: custom:button-card
+      entity: cover.rollershutter_0001
+      icon: mdi:stop
+      show_name: false
+      show_state: false
+      tap_action:
+        action: call-service
+        service: cover.stop_cover
+        target:
+          entity_id: cover.rollershutter_0001
+      styles:
+        card:
+          - padding: 10px
+          - border-radius: 12px
+          - background: rgba(255,255,255,0.04)
+        icon:
+          - color: |
+              [[[
+                return (entity.state === 'opening' || entity.state === 'closing')
+                  ? 'var(--warning-color)'
+                  : 'var(--state-inactive-color)';
+              ]]]
+  btn_close:
+    card:
+      type: custom:button-card
+      entity: cover.rollershutter_0001
+      icon: mdi:arrow-down-bold
+      show_name: false
+      show_state: false
+      tap_action:
+        action: call-service
+        service: cover.close_cover
+        target:
+          entity_id: cover.rollershutter_0001
+      styles:
+        card:
+          - padding: 10px
+          - border-radius: 12px
+          - background: rgba(255,255,255,0.04)
+        icon:
+          - color: |
+              [[[
+                return (entity.state === 'closed' || entity.state === 'closing')
+                  ? 'var(--state-inactive-color)'
+                  : 'var(--error-color)';
+              ]]]
+extra_styles: |
+  .rs-root{
+    width: 100%;
+    height: 100%;
+    display:flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .rs-header{
+    display:flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .rs-title{
+    font-weight: 900;
+    font-size: 16px;
+    line-height: 1.1;
+  }
+  .rs-status{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    font-size: 12px;
+    opacity: 0.95;
+  }
+  .rs-dot{
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--rs-accent);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.10);
+  }
+  .rs-label{
+    font-weight: 800;
+  }
+
+  .rs-layout{
+    flex: 1;
+    display:flex;
+    gap: 14px;
+    align-items: flex-start;
+    min-height: 0;
+  }
+
+  /* Fenêtre */
+  .rs-window{
+    position: relative;
+    width: calc(var(--rs-window-w) * 1px);
+    height: calc(var(--rs-window-h) * 1px);
+    border-radius: 14px;
+    border: 2px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.12);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.10);
+    z-index: 1;
+  }
+  .rs-glass{
+    position:absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+  }
+  .rs-roller{
+    position:absolute;
+    left:0;
+    right:0;
+    top:0;
+    height: calc(var(--rs-roller-h) * 1px);
+    background: rgba(0,0,0,0.35);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+
+  /* Tablier (lames) */
+  .rs-shutter{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom: 0;
+    top: auto;
+    height: calc(var(--rs-shutter-px) * 1px);
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.42) 0px,
+        rgba(0,0,0,0.42) 6px,
+        rgba(255,255,255,0.08) 6px,
+        rgba(255,255,255,0.08) 12px
+      );
+    border-bottom: 1px solid rgba(255,255,255,0.18);
+    transition: height var(--rs-dur) ease-in-out;
+    z-index: 2;
+  }
+
+  .rs-root.moving .rs-shutter{
+    animation: rs-slats 0.35s linear infinite;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
+  }
+  .rs-root.moving .rs-window{
+    border-color: var(--rs-accent);
+    animation: rs-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes rs-slats{
+    from { background-position: 0 0; }
+    to   { background-position: 0 12px; }
+  }
+  @keyframes rs-pulse{
+    0%   { box-shadow: 0 0 0 0 rgba(0,0,0,0.0), inset 0 0 0 2px rgba(0,0,0,0.10); }
+    50%  { box-shadow: 0 0 0 8px rgba(0,0,0,0.0), inset 0 0 0 2px rgba(0,0,0,0.10); }
+    100% { box-shadow: 0 0 0 0 rgba(0,0,0,0.0), inset 0 0 0 2px rgba(0,0,0,0.10); }
+  }
+
+  .rs-pct{
+    position:absolute;
+    right: 8px;
+    bottom: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    background: rgba(0,0,0,0.35);
+    padding: 4px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .rs-raw{
+    position:absolute;
+    left: 8px;
+    bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.85;
+  }
+
+  .rs-legend{
+    flex: 1;
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .rs-chip{
+    display:flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .rs-chip-k{ font-size: 12px; opacity: 0.8; }
+  .rs-chip-v{ font-size: 18px; font-weight: 900; line-height: 1.0; }
+  .rs-note{
+    font-size: 12px;
+    opacity: 0.85;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .rs-warn{
+    font-size: 11px;
+    opacity: 0.9;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,165,0,0.12);
+    border: 1px solid rgba(255,165,0,0.18);
+  }
+  @media (max-width: 430px){
+    .rs-layout{ flex-direction: column; align-items: flex-start; }
+    .rs-legend{ width: 100%; }
+  }
